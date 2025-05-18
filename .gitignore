@@ -1,0 +1,35 @@
+# 🟦 Python 일반
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.env
+.venv/
+venv/
+*.log
+
+# 🟨 Streamlit 관련
+.streamlit/
+
+# 단, config.toml은 추적 허용 (배포 설정용)
+!.streamlit/config.toml
+
+
+# 📄 인증 파일 (절대 올리지 말기)
+credentials.json
+token.json
+token.pickle
+
+# 📦 IDE/Editor 설정
+.vscode/
+.idea/
+.DS_Store
+
+# 📄 Jupyter / IPython 캐시
+.ipynb_checkpoints/
+
+# 📦 OS별 캐시
+Thumbs.db
+ehthumbs.db
+desktop.ini
