@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 import pandas as pd
 
+
 # 채팅 라인 정규표현식
 chat_line_pattern = re.compile(
     r"^((?:\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.)|(?:\d{4}년\s*\d{1,2}월\s*\d{1,2}일))"
@@ -94,9 +95,6 @@ def parse_chat_text(text):
     return parse_chat_lines(lines)
 
 
-import re
-from datetime import datetime
-import pandas as pd
 
 # 리포트 시작 패턴
 report_pattern = re.compile(r"\[?부동&작업\s*공유\]?")
@@ -111,41 +109,23 @@ def convert_to_24h(time_str: str, period: str) -> str:
     if period == '오전' and h == 12: h = 0
     return f"{h:02}:{m:02}"
 
+from datetime import datetime, timedelta
+
 def extract_report_data(messages):
-    """
-    messages: list of dicts with keys ['date','sender','time','message']
-    returns: DataFrame with columns:
-      ['날짜','종류','0. Site','1. 호기','2-1. Machine','2-2. Unit',
-       "2-3. Assy'",'3-1. 발생시간','3-2. 조치완료',
-       '4. 작업자','5. 현상','6. 원인','7. 조치']
-    """
-    # 1) 컬럼 정의 (순서 고정)
     cols = [
-        "종류",
-        "0. Site",
-        "1. 호기",
-        "2-1. Machine",
-        "2-2. Unit",
-        "2-3. Assy'",
-        "3-1. 발생시간",
-        "3-2. 조치완료",
-        "4. 작업자",
-        "5. 현상",
-        "6. 원인",
-        "7. 조치",
+        "종류", "0. Site", "1. 호기", "2-1. Machine", "2-2. Unit", "2-3. Assy'",
+        "3-1. 발생시간", "3-2. 조치완료", "3-3. 조치 시간(분)",
+        "4. 작업자", "5. 현상", "6. 원인", "7. 조치",
     ]
     time_val_pattern = re.compile(r"(오전|오후)\s*(\d{1,2}:\d{2})")
-
     records = []
+
     for msg in messages:
         text = msg['message']
-        # 리포트 블록이 아니면 건너뛰기
         if not report_pattern.search(text):
             continue
 
-        # 빈값 초기화
         data = {c: "" for c in cols}
-        # 각 줄 파싱
         for raw in text.splitlines():
             line = raw.strip()
             if not line or skip_inner_pattern.match(line) or ':' not in line:
@@ -153,22 +133,40 @@ def extract_report_data(messages):
             key, val = line.split(":", 1)
             key = key.strip()
             val = val.strip()
-            # 컬럼 순서에 없는 키는 무시
             if key not in data:
                 continue
-            # 시간 필드 변환
             if key in ("3-1. 발생시간", "3-2. 조치완료"):
                 m = time_val_pattern.search(val)
                 if m:
                     period, tstr = m.groups()
                     val = convert_to_24h(tstr, period)
+            if key == "1. 호기" and val and not val.startswith("#"):
+                val = f"#{val}"
             data[key] = val
 
-        # 날짜 필드 추가
         data['날짜'] = msg['date']
+
+        # 5. 현상, 6. 원인, 7. 조치 중 2개 이상 비면 제거
+        symptom_keys = ["5. 현상", "6. 원인", "7. 조치"]
+        empty_count = sum(1 for k in symptom_keys if not data[k])
+        if empty_count >= 2:
+            continue
+
+        # 조치 시간(분) 계산
+        t1 = data["3-1. 발생시간"]
+        t2 = data["3-2. 조치완료"]
+        try:
+            if t1 and t2:
+                dt1 = datetime.strptime(t1, "%H:%M")
+                dt2 = datetime.strptime(t2, "%H:%M")
+                if dt2 < dt1:
+                    dt2 += timedelta(days=1)  # 자정 넘어선 경우 처리
+                diff = (dt2 - dt1).total_seconds() / 60
+                data["3-3. 조치 시간(분)"] = int(diff)
+        except Exception:
+            data["3-3. 조치 시간(분)"] = ""
+
         records.append(data)
 
-    # DataFrame 생성 (날짜 컬럼을 앞에 두고 나머지 cols 순서 유지)
     df = pd.DataFrame(records, columns=['날짜'] + cols)
     return df
-
