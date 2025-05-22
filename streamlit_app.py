@@ -6,8 +6,8 @@ from openpyxl import load_workbook
 from report_extractor import parse_chat_text, extract_report_data
 
 # Streamlit 환경 설정
-st.set_page_config(page_title="채팅 리포트 추출기", layout="wide")
-st.title("📋 채팅 리포트 추출기 웹 앱")
+st.set_page_config(page_title="BM/PD 부동 내역 이력 정리", layout="wide")
+st.title("📋 BM/PD 부동 내역 이력 정리")
 
 # 템플릿 엑셀 파일 경로 (프로젝트 루트에 template.xlsx 파일을 위치시키세요)
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'template.xlsx')
