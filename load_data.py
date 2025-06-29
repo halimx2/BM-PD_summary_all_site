@@ -9,11 +9,9 @@ from dotenv import load_dotenv
 import re
 
 # load_dotenv()   # .env 읽어서 환경변수 등록
+
 # SHEET_ID  = os.getenv("SHEET_ID")
-import os
-
-SHEET_ID = os.environ["SHEET_ID"]
-
+SHEET_ID  = st.secrets["SHEET_ID"]
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:json"
 
 
