@@ -33,3 +33,6 @@ token.pickle
 Thumbs.db
 ehthumbs.db
 desktop.ini
+
+# 보안
+.env
