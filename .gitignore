@@ -36,3 +36,4 @@ desktop.ini
 
 # 보안
 .env
+options.py
