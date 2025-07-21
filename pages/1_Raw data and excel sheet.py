@@ -20,9 +20,9 @@ if error:
     st.error(error)
     st.stop()
 
-
 # '발생일' 컬럼 추가
 df['발생일'] = df['발생시간'].dt.date
+
 # 결측치 제거 후 최대/최소 발생일 계산
 valid_dates = df['발생일'].dropna()
 day_min, day_max = valid_dates.min(), valid_dates.max()

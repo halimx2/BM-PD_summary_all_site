@@ -93,6 +93,8 @@ load_dotenv()
 SHEET_ID  = os.getenv("SHEET_ID")
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:json"
 
+
+
 # 데이터 로드 및 전처리 함수
 @st.cache_data(ttl=300)
 def load_sheet_data() -> tuple[pd.DataFrame|None, str|None]:
@@ -158,12 +160,41 @@ def load_sheet_data() -> tuple[pd.DataFrame|None, str|None]:
                                .dt.total_seconds().div(60).round().astype('Int64'))
 
     # 현상/원인/조치 필터
+    # (1) 필터
     tmp = df[['현상','원인','조치']].fillna('').astype(str).applymap(bool)
     df = df[tmp.sum(axis=1) >= 2].reset_index(drop=True)
+
+    # (2) eng 계산—str()로 감싸서 None/NaN도 안전하게
     eng = df[['현상','원인','조치']].applymap(
-        lambda x: bool(re.fullmatch(r"[A-Za-z\s]+", x.strip()))
+        lambda x: bool(re.fullmatch(r"[A-Za-z\s]+", str(x).strip()))
     )
     df = df[~eng.any(axis=1)].reset_index(drop=True)
+
+    #    현상·원인·조치 중 하나라도 gibberish 면 그대로 제거
+
+    # 1) gibberish(말 안 되는) 판단 함수
+    def is_gibberish(text: str) -> bool:
+        txt = str(text).strip()
+        # 빈값
+        if not txt:
+            return True
+        # 숫자만 또는 특수문자만
+        if re.fullmatch(r'[\d\W]+', txt):
+            return True
+        # 한글 자모(ㄱ-ㅎ, ㅏ-ㅣ)만
+        if re.fullmatch(r'[ㄱ-ㅎㅏ-ㅣ]+', txt):
+            return True
+        # 너무 짧은 경우 (예: 길이 1 이하)
+        if len(txt) < 2:
+            return True
+        return False
+
+    mask = df.apply(
+        lambda row: any(is_gibberish(row[c]) for c in ['현상','원인','조치']),
+        axis=1
+    )
+    df_clean = df[~mask].reset_index(drop=True)
+
 
     # 컬럼 순서 정리
     ordered = ['종류','Site','호기','Machine','Unit',"Assy'",
