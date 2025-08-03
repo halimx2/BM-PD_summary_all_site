@@ -37,6 +37,22 @@ else:
 # 4) 선택된 사이트로 필터링
 df_site = df[df[site_col] == selected_site].reset_index(drop=True)
 
+# — 날짜 필터 추가 시작 —
+df_site['발생시간'] = pd.to_datetime(df_site['발생시간'])
+min_date = df_site['발생시간'].min().date()
+max_date = df_site['발생시간'].max().date()
+start_date, end_date = st.date_input(
+    "📅 기간 선택 (발생시간 기준)",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date
+)
+df_site = df_site[
+    (df_site['발생시간'].dt.date >= start_date) &
+    (df_site['발생시간'].dt.date <= end_date)
+].reset_index(drop=True)
+# — 날짜 필터 추가 끝 —
+
 # ───────────── BM25 검색 기능 추가 ─────────────
 import io
 import pandas as pd
@@ -94,26 +110,40 @@ use_simple = st.checkbox("✅ 키워드 포함 여부로 검색 (단순 필터)"
 if query:
     tokenizer = Tokenizer()
     q_tokens = [t.surface for t in tokenizer.tokenize(query)]
-    
+
     if use_simple:
-        # 모든 토큰이 문서에 포함된 행만 골라냄
+        # 단순 필터 모드 (변경 없음)
         matched_idx = [
             i for i, tokens in enumerate(tokenized_corpus)
             if all(q in tokens for q in q_tokens)
         ][:top_k]
-        scores = [None] * len(matched_idx)  # 점수 대신 None or 생략 가능
+        scores = [None] * len(matched_idx)
     else:
-        # BM25 점수 기반 상위 top_k
+        # 1) BM25 점수 계산
         scores_all = bm25.get_scores(q_tokens)
-        ranked = sorted(enumerate(scores_all), key=lambda x: x[1], reverse=True)
-        matched_idx, scores = zip(*ranked[:top_k])
+        # 2) (인덱스, 점수) 쌍으로 묶어서 내림차순 정렬
+        ranked = sorted(
+            enumerate(scores_all),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        # 3) 점수 0 이하는 모두 걸러내기
+        ranked = [(i, s) for i, s in ranked if s > 0]
+        # 4) top_k 개수만큼 잘라내기
+        if ranked:
+            matched_idx, scores = zip(*ranked[:top_k])
+        else:
+            matched_idx, scores = [], []
 
-    # 4) 결과 DataFrame (원본 전 컬럼 + Score)
-    result_df = df_site.iloc[list(matched_idx)].copy().reset_index(drop=True)
-    result_df["Score"] = scores
-    st.table(result_df)
-
-    # 다운로드 버튼 (생략 가능)
-    csv_data = result_df.to_csv(index=False).encode("utf-8-sig")
-    st.download_button("📥 CSV 다운로드", data=csv_data,
-                       file_name="search_results.csv", mime="text/csv")
+    if not matched_idx:
+        st.info("검색 결과가 없습니다.")
+    else:
+        result_df = df_site.iloc[list(matched_idx)].copy().reset_index(drop=True)
+        result_df["Score"] = scores
+        # (선택) 날짜 순 정렬
+        result_df = result_df.sort_values(by="발생시간", ascending=False).reset_index(drop=True)
+        st.table(result_df)
+        # 다운로드 버튼
+        csv_data = result_df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button("📥 CSV 다운로드", data=csv_data,
+                           file_name="search_results.csv", mime="text/csv")
