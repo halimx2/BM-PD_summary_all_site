@@ -8,7 +8,7 @@ import re
 from utils import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS, load_sheet_data
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 
-# 페이지 설정
+# — 페이지 설정
 st.set_page_config(page_title="부동내역 필터링", layout="wide")
 st.title("BM/PD 내역 분석")
 
@@ -22,80 +22,81 @@ if error:
     st.stop()
 
 # 3) ‘site’ 컬럼 자동 감지
-cols = df.columns.tolist()
-if "site" in df.columns:
-    site_col = "site"
+cols = df.columns.str.strip().str.lower()
+if "site" in cols:
+    site_col = df.columns[cols.tolist().index("site")]
 else:
-    candidates = [c for c in cols if "사이트" in c or "Site" in c or "SITE" in c]
+    candidates = [c for c in df.columns if re.search(r"사이트|Site|SITE", c)]
     if candidates:
         site_col = candidates[0]
         st.warning(f"‘{site_col}’ 컬럼을 사이트 식별용으로 자동 설정했습니다.")
     else:
-        st.error(f"사이트 컬럼을 찾을 수 없습니다.\n→ 현재 컬럼 목록: {cols}")
+        st.error(f"사이트 컬럼을 찾을 수 없습니다.\n→ 현재 컬럼 목록: {list(df.columns)}")
         st.stop()
 
 # 4) 해당 사이트 필터링
 df_site = df[df[site_col] == selected_site].reset_index(drop=True)
+if df_site.empty:
+    st.warning(f"‘{selected_site}’ 에 해당하는 데이터가 없습니다.")
+    st.stop()
+
 st.subheader(f"{selected_site} 데이터 ({len(df_site)}건)")
 st.dataframe(df_site, use_container_width=True)
 
 # 5) 시간 컬럼 자동 탐지 및 변환
 time_cols = {}
 for col in df_site.columns:
-    if re.search(r'발생', col):
-        time_cols['발생시간'] = col
-    elif re.search(r'완료', col):
-        time_cols['조치완료'] = col
+    if re.search(r"발생", col):
+        time_cols["발생시간"] = col
+    elif re.search(r"완료", col):
+        time_cols["조치완료"] = col
 
-if '발생시간' not in time_cols or '조치완료' not in time_cols:
+if "발생시간" not in time_cols or "조치완료" not in time_cols:
     st.error(f"시간 컬럼을 찾을 수 없습니다. 탐지된 컬럼: {time_cols}")
     st.stop()
 
-df_site[time_cols['발생시간']] = pd.to_datetime(df_site[time_cols['발생시간']])
-df_site[time_cols['조치완료']] = pd.to_datetime(df_site[time_cols['조치완료']])
+df_site[time_cols["발생시간"]] = pd.to_datetime(df_site[time_cols["발생시간"]])
+df_site[time_cols["조치완료"]] = pd.to_datetime(df_site[time_cols["조치완료"]])
 
 # 6) 컬럼명 정리 & time_cols 재매핑
 df_site.columns = df_site.columns.str.strip()
-time_cols = {
-    '발생시간': time_cols['발생시간'],
-    '조치완료': time_cols['조치완료']
-}
+발생_col = time_cols["발생시간"]
+완료_col = time_cols["조치완료"]
 
-# --- Machine/Unit/Assy' 별 호기별 발생횟수·총 소요시간 집계 ---
-df_site['소요시간'] = df_site[time_cols['조치완료']] - df_site[time_cols['발생시간']]
+# — 집계용 소요시간 컬럼 생성
+df_site["소요시간"] = df_site[완료_col] - df_site[발생_col]
 
 agg = (
     df_site
-    .groupby(['Machine','Unit',"Assy'","호기"])
+    .groupby(["Machine", "Unit", "Assy'", "호기"])
     .agg(
-        횟수=('소요시간','count'),
-        총소요시간=('소요시간','sum')
+        횟수=("소요시간", "count"),
+        총소요시간=("소요시간", "sum")
     )
     .reset_index()
 )
-agg['총소요_초'] = agg['총소요시간'].dt.total_seconds()
+agg["총소요_초"] = agg["총소요시간"].dt.total_seconds()
 
-# ▶ (1) 발생횟수 (AgGrid + 조건부 색상 + 클릭 상세 보기)
+# — (1) 발생횟수 피벗 & AgGrid
 cnt_pivot = (
     agg
     .pivot_table(
-        index=['Machine','Unit',"Assy'"],
-        columns='호기',
-        values='횟수',
+        index=["Machine", "Unit", "Assy'"],
+        columns="호기",
+        values="횟수",
         fill_value=0
     )
     .reset_index()
 )
 
 st.subheader("Machine/Unit/Assy' 별 호기별 발생횟수 (AgGrid)")
-cell_style_cnt = JsCode("""
+js_cnt_style = JsCode("""
 function(params) {
-  
-  if (params.value >= 1) {
-    return {color: 'white', backgroundColor: '#fdae61'};
-  } else if (params.value > 10) {
+  if (params.value > 50) {
     return {color: 'white', backgroundColor: '#d7191c'};
-  } else if (params.value > 50) {
+  } else if (params.value > 10) {
+    return {color: 'white', backgroundColor: '#fdae61'};
+  } else if (params.value >= 1) {
     return {backgroundColor: '#fdae61'};
   }
 }
@@ -104,8 +105,8 @@ function(params) {
 gb_cnt = GridOptionsBuilder.from_dataframe(cnt_pivot)
 gb_cnt.configure_selection("single")
 for c in cnt_pivot.columns:
-    if c not in ['Machine','Unit',"Assy'"]:
-        gb_cnt.configure_column(c, cellStyle=cell_style_cnt)
+    if c not in ["Machine", "Unit", "Assy'"]:
+        gb_cnt.configure_column(c, cellStyle=js_cnt_style)
 grid_opts_cnt = gb_cnt.build()
 
 grid_cnt = AgGrid(
@@ -117,8 +118,12 @@ grid_cnt = AgGrid(
     allow_unsafe_jscode=True
 )
 
-if grid_cnt["selected_rows"]:
-    sel = grid_cnt["selected_rows"][0]
+# 선택된 행이 있는지 안전하게 검사
+sel_rows = grid_cnt.get("selected_rows", [])
+if isinstance(sel_rows, pd.DataFrame):
+    sel_rows = sel_rows.to_dict("records")
+if len(sel_rows) > 0:
+    sel = sel_rows[0]
     m, u, a = sel["Machine"], sel["Unit"], sel["Assy'"]
     detail_cnt = df_site[
         (df_site["Machine"] == m) &
@@ -128,20 +133,20 @@ if grid_cnt["selected_rows"]:
     with st.expander(f"[{m} / {u} / {a}] 발생횟수 상세 목록", expanded=True):
         st.dataframe(detail_cnt, use_container_width=True)
 
-# ▶ (2) 총 소요시간 (초) (AgGrid + 조건부 색상 + 클릭 상세 보기)
+# — (2) 총 소요시간(초) 피벗 & AgGrid
 time_pivot = (
     agg
     .pivot_table(
-        index=['Machine','Unit',"Assy'"],
-        columns='호기',
-        values='총소요_초',
+        index=["Machine", "Unit", "Assy'"],
+        columns="호기",
+        values="총소요_초",
         fill_value=0
     )
     .reset_index()
 )
 
 st.subheader("Machine/Unit/Assy' 별 호기별 총 소요시간 (초) (AgGrid)")
-cell_style_time = JsCode("""
+js_time_style = JsCode("""
 function(params) {
   if (params.value > 10000) {
     return {color: 'white', backgroundColor: '#2c7bb6'};
@@ -154,8 +159,8 @@ function(params) {
 gb_time = GridOptionsBuilder.from_dataframe(time_pivot)
 gb_time.configure_selection("single")
 for c in time_pivot.columns:
-    if c not in ['Machine','Unit',"Assy'"]:
-        gb_time.configure_column(c, cellStyle=cell_style_time)
+    if c not in ["Machine", "Unit", "Assy'"]:
+        gb_time.configure_column(c, cellStyle=js_time_style)
 grid_opts_time = gb_time.build()
 
 grid_time = AgGrid(
@@ -167,8 +172,11 @@ grid_time = AgGrid(
     allow_unsafe_jscode=True
 )
 
-if grid_time["selected_rows"]:
-    sel2 = grid_time["selected_rows"][0]
+sel_time = grid_time.get("selected_rows", [])
+if isinstance(sel_time, pd.DataFrame):
+    sel_time = sel_time.to_dict("records")
+if len(sel_time) > 0:
+    sel2 = sel_time[0]
     m2, u2, a2 = sel2["Machine"], sel2["Unit"], sel2["Assy'"]
     detail_time = df_site[
         (df_site["Machine"] == m2) &

@@ -102,34 +102,44 @@ tokenized_corpus = build_tokenized_corpus(docs)
 # 3) 검색 UI
 st.markdown("---")
 st.subheader("통합 텍스트 검색")
+# top_k = st.slider("결과 개수", 1, 100, 5)
+
+# query = st.text_input("🔎 검색어 입력")
+# use_simple = st.checkbox("✅ 키워드 포함 여부로 검색 (단순 필터)", value=False)
+
+##
 top_k = st.slider("결과 개수", 1, 100, 5)
 
-query = st.text_input("🔎 검색어 입력")
+# 1) 사용자 입력을 쉼표 또는 공백으로 분리
+raw_query = st.text_input("🔎 검색어 입력 (쉼표 또는 공백으로 구분하여 여러 개 입력)")
 use_simple = st.checkbox("✅ 키워드 포함 여부로 검색 (단순 필터)", value=False)
 
-if query:
+if raw_query:
+    # ',' 또는 공백으로 split
+    query_list = [q.strip() for q in re.split(r"[,\s]+", raw_query) if q.strip()]
+    
+    # BM25용 토큰: 모든 키워드를 공백으로 합쳐 다시 토큰화
     tokenizer = Tokenizer()
-    q_tokens = [t.surface for t in tokenizer.tokenize(query)]
+    combined = " ".join(query_list)
+    q_tokens = [t.surface for t in tokenizer.tokenize(combined)]
 
     if use_simple:
-        # 단순 필터 모드 (변경 없음)
+        # 단순 필터: 모든 키워드가 포함된 문서만
         matched_idx = [
             i for i, tokens in enumerate(tokenized_corpus)
-            if all(q in tokens for q in q_tokens)
+            if all(q in tokens for q in query_list)
         ][:top_k]
         scores = [None] * len(matched_idx)
     else:
-        # 1) BM25 점수 계산
+        # BM25 점수 계산
         scores_all = bm25.get_scores(q_tokens)
-        # 2) (인덱스, 점수) 쌍으로 묶어서 내림차순 정렬
         ranked = sorted(
             enumerate(scores_all),
             key=lambda x: x[1],
             reverse=True
         )
-        # 3) 점수 0 이하는 모두 걸러내기
+        # 점수 0 이하 제거
         ranked = [(i, s) for i, s in ranked if s > 0]
-        # 4) top_k 개수만큼 잘라내기
         if ranked:
             matched_idx, scores = zip(*ranked[:top_k])
         else:
@@ -140,10 +150,10 @@ if query:
     else:
         result_df = df_site.iloc[list(matched_idx)].copy().reset_index(drop=True)
         result_df["Score"] = scores
-        # (선택) 날짜 순 정렬
-        result_df = result_df.sort_values(by="발생시간", ascending=False).reset_index(drop=True)
+        # result_df = result_df.sort_values(by="발생시간").reset_index(drop=True)
+        result_df = result_df.sort_values(by="Score", ascending=False).reset_index(drop=True)
         st.table(result_df)
-        # 다운로드 버튼
+
         csv_data = result_df.to_csv(index=False).encode("utf-8-sig")
         st.download_button("📥 CSV 다운로드", data=csv_data,
                            file_name="search_results.csv", mime="text/csv")
