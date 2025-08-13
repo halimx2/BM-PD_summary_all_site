@@ -40,13 +40,8 @@ if df_site.empty:
     st.warning(f"‘{selected_site}’ 에 해당하는 데이터가 없습니다.")
     st.stop()
 
-<<<<<<< HEAD
 # st.subheader(f"{selected_site} 데이터 ({len(df_site)}건)")
 # st.dataframe(df_site, use_container_width=True)
-=======
-st.subheader(f"{selected_site} 데이터 ({len(df_site)}건)")
-st.dataframe(df_site, use_container_width=True)
->>>>>>> b0f62b68db321b223ec9655c10f16cc6b71bf715
 
 # 5) 시간 컬럼 자동 탐지 및 변환
 time_cols = {}
@@ -93,12 +88,8 @@ cnt_pivot = (
     )
     .reset_index()
 )
-
-<<<<<<< HEAD
 st.subheader("Machine/Unit/Assy' 별 호기별 발생횟수")
-=======
-st.subheader("Machine/Unit/Assy' 별 호기별 발생횟수 (AgGrid)")
->>>>>>> b0f62b68db321b223ec9655c10f16cc6b71bf715
+
 js_cnt_style = JsCode("""
 function(params) {
   if (params.value > 50) {
@@ -129,7 +120,7 @@ grid_cnt = AgGrid(
 
 # 선택된 행이 있는지 안전하게 검사
 sel_rows = grid_cnt.get("selected_rows", [])
-<<<<<<< HEAD
+
 # sel_rows = grid_cnt.get("selected_rows", []) or []
 
 if isinstance(sel_rows, pd.DataFrame):
@@ -138,11 +129,7 @@ if isinstance(sel_rows, pd.DataFrame):
 if sel_rows is None:
     sel_rows = []
 elif len(sel_rows) > 0:
-=======
-if isinstance(sel_rows, pd.DataFrame):
-    sel_rows = sel_rows.to_dict("records")
-if len(sel_rows) > 0:
->>>>>>> b0f62b68db321b223ec9655c10f16cc6b71bf715
+
     sel = sel_rows[0]
     m, u, a = sel["Machine"], sel["Unit"], sel["Assy'"]
     detail_cnt = df_site[
@@ -165,11 +152,8 @@ time_pivot = (
     .reset_index()
 )
 
-<<<<<<< HEAD
 st.subheader("Machine/Unit/Assy' 별 호기별 총 소요시간 (초)")
-=======
-st.subheader("Machine/Unit/Assy' 별 호기별 총 소요시간 (초) (AgGrid)")
->>>>>>> b0f62b68db321b223ec9655c10f16cc6b71bf715
+
 js_time_style = JsCode("""
 function(params) {
   if (params.value > 10000) {
@@ -197,7 +181,7 @@ grid_time = AgGrid(
 )
 
 sel_time = grid_time.get("selected_rows", [])
-<<<<<<< HEAD
+
 # sel_time = grid_time.get("selected_rows", []) or []
 
 if isinstance(sel_time, pd.DataFrame):
@@ -206,11 +190,6 @@ if isinstance(sel_time, pd.DataFrame):
 if sel_time is None:
     sel_time = []
 elif len(sel_time) > 0:
-=======
-if isinstance(sel_time, pd.DataFrame):
-    sel_time = sel_time.to_dict("records")
-if len(sel_time) > 0:
->>>>>>> b0f62b68db321b223ec9655c10f16cc6b71bf715
     sel2 = sel_time[0]
     m2, u2, a2 = sel2["Machine"], sel2["Unit"], sel2["Assy'"]
     detail_time = df_site[
