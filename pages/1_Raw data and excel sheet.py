@@ -9,6 +9,7 @@ import openpyxl
 
 from utils import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS
 from utils import load_sheet_data
+from utils import transform_to_WA_schema, to_excel_template_WA
 
 # — Streamlit UI
 st.set_page_config(page_title="부동내역 필터링", layout="wide")
@@ -103,25 +104,65 @@ with table_col:
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
-    # 템플릿에 적용된 엑셀 다운로드 함수
-    def to_excel_template(df: pd.DataFrame) -> bytes:
-        from openpyxl import load_workbook
-        buf = io.BytesIO()
-        wb = load_workbook('template.xlsx')
-        sheet_name = wb.sheetnames[0]
-        ws = wb[sheet_name]
-        ws.delete_rows(1, ws.max_row)
-        ws.append(list(df.columns))
-        for row in df.itertuples(index=False):
-            ws.append(list(row))
-        wb.save(buf)
-        return buf.getvalue()
+    # # 템플릿에 적용된 엑셀 다운로드 함수
+    # def to_excel_template(df: pd.DataFrame) -> bytes:
+    #     from openpyxl import load_workbook
+    #     buf = io.BytesIO()
+    #     wb = load_workbook('template.xlsx')
+    #     sheet_name = wb.sheetnames[0]
+    #     ws = wb[sheet_name]
+    #     ws.delete_rows(1, ws.max_row)
+    #     ws.append(list(df.columns))
+    #     for row in df.itertuples(index=False):
+    #         ws.append(list(row))
+    #     wb.save(buf)
 
-    # 템플릿 적용 다운로드 버튼
+    #     return buf.getvalue()
+    
+    # import pandas as pd
+    # import io
+    # from openpyxl import load_workbook
+    # # openpyxl 대신 pandas의 to_excel을 사용하는 것도 고려해 볼 수 있습니다.
+
+    # def to_excel_template(df_data: pd.DataFrame) -> bytes:
+    #     buf = io.BytesIO()
+    #     template_path = 'template.xlsx'
+        
+    #     try:
+    #         wb = load_workbook(template_path)
+    #     except FileNotFoundError:
+    #         raise FileNotFoundError(f"템플릿 파일이 없습니다: {template_path}")
+            
+    #     sheet_name = wb.sheetnames[0]
+    #     ws = wb[sheet_name]
+
+    #     df_ = df_data.fillna(None) 
+    #     ws.delete_rows(1, ws.max_row) 
+    #     ws.append(list(df_.columns))
+    #     for row in df_.itertuples(index=False):
+    #         ws.append(list(row))
+    
+    #     wb.save(buf)
+
+        # return buf.getvalue()
+        
+    # # 템플릿 적용 다운로드 버튼
+    # st.download_button(
+    #     key='download_template',
+    #     label='📥 템플릿에 적용된 엑셀 다운로드',
+    #     data=to_excel_template(filtered),
+    #     file_name='filled_template.xlsx',
+    #     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    # )
+
+
+    filtered_wa = transform_to_WA_schema(filtered)
+    st.write("변환 결과 미리보기")
+    st.dataframe(filtered_wa.head(10), use_container_width=True)
+
     st.download_button(
-        key='download_template',
-        label='📥 템플릿에 적용된 엑셀 다운로드',
-        data=to_excel_template(filtered),
-        file_name='filled_template.xlsx',
-        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        "📥 템플릿 양식으로 다운로드 (.xlsx)",
+        data=to_excel_template_WA(filtered_wa),
+        file_name="bmpd_daily_issue_WA.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
