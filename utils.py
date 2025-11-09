@@ -39,8 +39,11 @@ def _proc_label(x):
     PROCESS_LABEL = {
         "Inspection": "①Inspection",
         "Lamination": "①Lamination",
+        "Electrode Supply":"①Lamination",
         "Stacking":   "②Stacking",
+        "D-Stacking":   "②Stacking",
         "Taping": "②Stacking",
+        "Taper": "②Stacking",
         "Inspection": "②Stacking",
     }
     if pd.isna(x): 
