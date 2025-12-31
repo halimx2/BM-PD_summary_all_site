@@ -81,7 +81,7 @@ with filter_col:
 with table_col:
     st.success(f"✅ {len(filtered)}개 행 표시")
     display_cols = [
-        '발생일','발생시간','조치완료시간','조치 진행 시간(분)',
+        '발생일','발생시간','조치완료','조치 진행 시간(분)',
         '종류','Site','호기','Machine','Unit',"Assy'",
         '작업자','현상','원인','조치'
     ]

@@ -34,7 +34,7 @@ def detect_cols(df):
     name_map["cause"]   = pick(["원인"])
     name_map["action"]  = pick(["조치"])
     name_map["occur_dt"]= pick(["발생시간","발생 일시","발생 일자","발생일"])
-    name_map["done_dt"] = pick(["조치완료", "조치완료시간","완료시간","종료시간"])
+    name_map["done_dt"] = pick(["조치완료", "조치완료","완료시간","종료시간"])
 
     missing = [k for k,v in name_map.items() if v is None and k in ("site","occur_dt")]
     if missing:
@@ -170,7 +170,7 @@ def build_handover_excel(df, nm):
     """엑셀 인수인계서(체크리스트 포함) 바이너리를 반환"""
     # 보고서 컬럼 표준화
     cols_out = [
-        "발생시간","조치완료시간","Site","종류","호기","Machine","Unit","Assy'","작업자","현상","원인","조치","금일 필요 추가 조치 사항"
+        "발생시간","조치완료","Site","종류","호기","Machine","Unit","Assy'","작업자","현상","원인","조치","금일 필요 추가 조치 사항"
     ]
     def pick(colkey, default=""):
         c = nm.get(colkey)
@@ -178,7 +178,7 @@ def build_handover_excel(df, nm):
 
     out = pd.DataFrame({
         "발생시간": to_datetime_safe(df[nm["occur_dt"]]),
-        "조치완료시간": to_datetime_safe(df[nm["done_dt"]]) if nm.get("done_dt") else pd.NaT,
+        "조치완료": to_datetime_safe(df[nm["done_dt"]]) if nm.get("done_dt") else pd.NaT,
         "Site": df[nm["site"]] if nm.get("site") in df.columns else "",
         "종류": df[nm["kind"]] if nm.get("kind") in df.columns else "",
         "호기": df[nm["ho"]] if nm.get("ho") in df.columns else "",
@@ -205,9 +205,9 @@ def build_handover_excel(df, nm):
             ws.write(0, col_num, value, header_fmt)
             ws.set_column(col_num, col_num, 20, cell_fmt)
 
-        # 조건부서식: 조치완료시간이 비어있으면 행 음영
+        # 조건부서식: 조치완료이 비어있으면 행 음영
         last_row = len(out) + 1
-        done_col_index = out.columns.get_loc("조치완료시간")
+        done_col_index = out.columns.get_loc("조치완료")
         ws.conditional_format(1, 0, last_row, len(out.columns)-1, {
             "type":"formula",
             "criteria": f'ISBLANK(INDIRECT(ADDRESS(ROW(),{done_col_index+1})))',

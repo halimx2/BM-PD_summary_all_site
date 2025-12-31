@@ -63,13 +63,13 @@ def _bmpd_label(x):
 def transform_to_WA_schema(df_src: pd.DataFrame) -> pd.DataFrame:
     """
     입력 컬럼 예:
-        종류, Site, 호기, Machine, Unit, Assy', 발생시간, 조치완료시간,
+        종류, Site, 호기, Machine, Unit, Assy', 발생시간, 조치완료,
         조치 진행 시간(분), 작업자, 현상, 원인, 조치, 발생일
     """
     df = df_src.copy()
 
     dt_occ  = _to_dt(df.get("발생시간"))
-    dt_done = _to_dt(df.get("조치완료시간"))
+    dt_done = _to_dt(df.get("조치완료"))
     dt_day  = _to_dt(df.get("발생일"))
 
     # 파생
