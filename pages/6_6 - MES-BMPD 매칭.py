@@ -11,13 +11,12 @@ from bmpd_to_mes import df_clean_korean, run_matching_reverse, show_alarm_catalo
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="BMPD ↔ MES 로딩 (Lami/STK 분리)", layout="wide")
-st.title("📊 BMPD ↔ MES 데이터 로딩")
-
+st.set_page_config(page_title="BMPD ↔ MES 매칭", layout="wide")
+st.title("📊 BMPD ↔ MES 매칭")
 
 st.subheader("1️⃣ BMPD 데이터 불러오기")
 try:
-    from utils import load_sheet_data   # 님 프로젝트의 기존 로더
+    from utils import load_sheet_data
     df_bmpd, error = load_sheet_data()
     if error:
         st.error(error)

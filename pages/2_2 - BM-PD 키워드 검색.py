@@ -9,8 +9,8 @@ from utils import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS
 from utils import load_sheet_data
 
 # — Streamlit UI
-st.set_page_config(page_title="BM/PD 내역 서칭", layout="wide")
-st.title("BM/PD 내역 키워드 기반 서칭")
+st.set_page_config(page_title="BM/PD 내역 키워드 검색", layout="wide")
+st.title("BM/PD 내역 키워드 검색")
 
 # 1) 사이트 선택
 selected_site = st.selectbox("🔍 분석할 사이트를 선택하세요", SITE_OPTIONS)

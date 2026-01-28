@@ -9,8 +9,8 @@ from utils import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS, loa
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 
 # — 페이지 설정
-st.set_page_config(page_title="부동내역 필터링", layout="wide")
-st.title("BM/PD 내역 분석")
+st.set_page_config(page_title="Assy 별 이슈 (고질이슈 파악)", layout="wide")
+st.title("Assy 별 이슈 (고질이슈 파악)")
 
 # 1) 사이트 선택
 selected_site = st.selectbox("🔍 분석할 사이트를 선택하세요", SITE_OPTIONS, index=0)
@@ -60,22 +60,61 @@ df_site[time_cols["조치완료"]] = pd.to_datetime(df_site[time_cols["조치완
 
 # 6) 컬럼명 정리 & time_cols 재매핑
 df_site.columns = df_site.columns.str.strip()
-발생_col = time_cols["발생시간"]
-완료_col = time_cols["조치완료"]
+occur_col = time_cols["발생시간"]
+done_col  = time_cols["조치완료"]
 
-# — 집계용 소요시간 컬럼 생성
-df_site["소요시간"] = df_site[완료_col] - df_site[발생_col]
+# 6-1) Analysis Filters (Ho + Date)
+st.markdown("### 호기 설정 및 기간 선택")
+
+col_ho, col_date = st.columns([1.5, 1])
+
+with col_ho:
+    ho_list = sorted(df_site["호기"].dropna().unique())
+    selected_hos = st.multiselect(
+        "호기 선택",
+        ho_list,
+    )
+
+with col_date:
+    min_date = df_site[occur_col].min().date()
+    max_date = df_site[occur_col].max().date()
+
+    start_date, end_date = st.date_input(
+        "Date Range (Occurrence)",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date
+    )
+
+# 6-2) 선택 필터 적용 (Ho + Date)  ✅ 이 블록을 agg 만들기 전에 추가하세요
+df_f = df_site.copy()
+
+# (1) 호기 필터: 아무것도 선택 안 했으면 전체 유지
+if selected_hos:
+    df_f = df_f[df_f["호기"].isin(selected_hos)]
+
+# (2) 날짜 필터 (발생시간 기준)
+df_f = df_f[
+    (df_f[occur_col].dt.date >= start_date) &
+    (df_f[occur_col].dt.date <= end_date)
+].reset_index(drop=True)
+
+if df_f.empty:
+    st.warning("선택한 호기/기간 조건에 해당하는 데이터가 없습니다.")
+    st.stop()
+
+df_f["소요시간"] = df_f[done_col] - df_f[occur_col]
 
 agg = (
-    df_site
+    df_f
     .groupby(["Machine", "Unit", "Assy'", "호기"])
     .agg(
-        횟수=("소요시간", "count"),
+        횟수=("소요시간", "size"),
         총소요시간=("소요시간", "sum")
     )
     .reset_index()
 )
-agg["총소요_초"] = agg["총소요시간"].dt.total_seconds()
+agg["총소요_초"] = agg["총소요시간"].dt.total_seconds() / 60
 
 # — (1) 발생횟수 피벗 & AgGrid
 cnt_pivot = (
@@ -92,12 +131,24 @@ st.subheader("Machine/Unit/Assy' 별 호기별 발생횟수")
 
 js_cnt_style = JsCode("""
 function(params) {
-  if (params.value > 50) {
-    return {color: 'white', backgroundColor: '#d7191c'};
-  } else if (params.value > 10) {
-    return {color: 'white', backgroundColor: '#fdae61'};
-  } else if (params.value >= 1) {
-    return {backgroundColor: '#fdae61'};
+  if (params.value == null || params.value === 0) {
+    return {};
+  }
+
+  const v = params.value;
+
+  if (v >= 50) {
+    return { color: 'white', backgroundColor: '#7f2704' };   // 매우 진한 오렌지
+  } else if (v >= 30) {
+    return { color: 'white', backgroundColor: '#a63603' };
+  } else if (v >= 20) {
+    return { color: 'white', backgroundColor: '#d94801' };
+  } else if (v >= 10) {
+    return { backgroundColor: '#f16913' };
+  } else if (v >= 5) {
+    return { backgroundColor: '#fdae6b' };
+  } else if (v >= 1) {
+    return { backgroundColor: '#fee6ce' };   // 아주 연한 오렌지
   }
 }
 """)
@@ -132,10 +183,10 @@ elif len(sel_rows) > 0:
 
     sel = sel_rows[0]
     m, u, a = sel["Machine"], sel["Unit"], sel["Assy'"]
-    detail_cnt = df_site[
-        (df_site["Machine"] == m) &
-        (df_site["Unit"]    == u) &
-        (df_site["Assy'"]   == a)
+    detail_cnt = df_f[
+        (df_f["Machine"] == m) &
+        (df_f["Unit"]    == u) &
+        (df_f["Assy'"]   == a)
     ]
     with st.expander(f"[{m} / {u} / {a}] 발생횟수 상세 목록", expanded=True):
         st.dataframe(detail_cnt, use_container_width=True)
@@ -152,14 +203,26 @@ time_pivot = (
     .reset_index()
 )
 
-st.subheader("Machine/Unit/Assy' 별 호기별 총 소요시간 (초)")
+st.subheader("Machine/Unit/Assy' 별 호기별 총 소요시간 (분)")
 
 js_time_style = JsCode("""
 function(params) {
-  if (params.value > 10000) {
-    return {color: 'white', backgroundColor: '#2c7bb6'};
-  } else if (params.value > 5000) {
-    return {backgroundColor: '#abd9e9'};
+  if (params.value == null || params.value === 0) {
+    return {};
+  }
+
+  const v = params.value;
+
+  if (v >= 500) {
+    return { color: 'white', backgroundColor: '#08306b' };
+  } else if (v >= 400) {
+    return { color: 'white', backgroundColor: '#08519c' };
+  } else if (v >= 300) {
+    return { color: 'white', backgroundColor: '#2171b5' };
+  } else if (v >= 200) {
+    return { backgroundColor: '#6baed6' };
+  } else if (v >= 100) {
+    return { backgroundColor: '#c6dbef' };
   }
 }
 """)
@@ -192,10 +255,10 @@ if sel_time is None:
 elif len(sel_time) > 0:
     sel2 = sel_time[0]
     m2, u2, a2 = sel2["Machine"], sel2["Unit"], sel2["Assy'"]
-    detail_time = df_site[
-        (df_site["Machine"] == m2) &
-        (df_site["Unit"]    == u2) &
-        (df_site["Assy'"]   == a2)
+    detail_time = df_f[
+        (df_f["Machine"] == m2) &
+        (df_f["Unit"]    == u2) &
+        (df_f["Assy'"]   == a2)
     ]
     with st.expander(f"[{m2} / {u2} / {a2}] 총 소요시간 상세 목록", expanded=True):
         st.dataframe(detail_time, use_container_width=True)

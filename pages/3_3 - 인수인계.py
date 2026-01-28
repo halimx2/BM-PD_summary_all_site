@@ -7,8 +7,8 @@ from datetime import datetime, date, time, timedelta
 from utils import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS, load_sheet_data
 
 # --- 페이지 설정
-st.set_page_config(page_title="인수인계 보고서", layout="wide")
-st.title("인수인계 보고서 (하루/주간·야간)")
+st.set_page_config(page_title="주/야간 인수인계 사항", layout="wide")
+st.title("주/야간 인수인계 정리")
 
 # --- 공통 함수
 def detect_cols(df):
@@ -131,7 +131,7 @@ def build_text_summary(df, nm):
     lines = []
     for ho, g in df.groupby(ho_col, dropna=False):
         ho_name = str(ho).strip() if pd.notna(ho) and str(ho).strip() else "미지정"
-        lines.append(f"[#{ho_name}호기]")
+        lines.append(f"[{ho_name}호기]")
         for _, r in g.iterrows():
             start = r.get(occ_col, pd.NaT)
             end   = r.get(done_col, pd.NaT)
@@ -256,7 +256,7 @@ st.info(f"조회 구간: {start_dt} ~ {end_dt}")
 mask = (df_site[occur_col] >= start_dt) & (df_site[occur_col] < end_dt)
 df_range = df_site.loc[mask].copy().reset_index(drop=True)
 
-st.markdown(f"**선택 구간 데이터 {len(df_range)}건**")
+st.markdown(f"**주간/야간 데이터: {len(df_range)}건**")
 st.dataframe(df_range, use_container_width=True)
 
 # --- 엑셀 인수인계서 (체크리스트) 생성/다운로드
@@ -264,7 +264,7 @@ if not df_range.empty:
     try:
         xls_buf = build_handover_excel(df_range, colmap_tmp)
         st.download_button(
-            label="⬇️ 인수인계서(체크리스트) 엑셀 다운로드",
+            label="⬇️ 인수인계 사항 (엑셀) 다운로드",
             data=xls_buf.getvalue(),
             file_name=f"인수인계서_{selected_site}_{target_date}_{shift}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -273,7 +273,7 @@ if not df_range.empty:
         st.error(f"엑셀 생성 실패: {e}")
 
 # --- 호기별 줄글 요약 (텍스트만)
-st.subheader("호기별 발생 이력 요약 (복사해서 사용)")
+st.subheader("호기별 발생 이력 요약 (text)")
 if df_range.empty:
     st.write("해당 구간 데이터가 없습니다.")
 else:

@@ -10,8 +10,8 @@ from utils import load_sheet_data
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 # 페이지 설정
-st.set_page_config(page_title="부동내역 필터링", layout="wide")
-st.title("BM/PD 내역 분석")
+st.set_page_config(page_title="호기별 BM/PD 고질 이슈 분석", layout="wide")
+st.title("호기별 BM/PD 고질 이슈 분석")
 
 # 1) 사이트 선택
 selected_site = st.selectbox("🔍 분석할 사이트를 선택하세요", SITE_OPTIONS)
@@ -36,10 +36,11 @@ else:
         st.stop()
 
 df_site = df[df[site_col] == selected_site].reset_index(drop=True)
-st.subheader(f"{selected_site} 데이터 ({len(df_site)}건)")
-st.dataframe(df_site)
+# st.subheader(f"{selected_site} 데이터 ({len(df_site)}건)")
+# st.dataframe(df_site)
 
 # 4) 시간 컬럼 자동 탐지 및 변환
+
 time_cols = {}
 for col in df_site.columns:
     if re.search(r'발생', col):
@@ -62,9 +63,47 @@ time_cols = {
 }
 
 # 5) 호기 선택 UI 및 소요시간 계산
-st.subheader(f"호기 선택")
+
+# 5) 분석 조건 선택 (호기 + 기간)
+st.markdown("### 분석 조건")
+
+col_ho, col_date = st.columns([1.5, 1])
+
+with col_ho:
+    ho_list = sorted(df_site['호기'].unique())
+    selected_hos = st.multiselect(
+        "호기 선택",
+        ho_list,
+        default=[]
+    )
+
+with col_date:
+    min_date = df_site[time_cols['발생시간']].min().date()
+    max_date = df_site[time_cols['발생시간']].max().date()
+
+    start_date, end_date = st.date_input(
+        "발생일 기준",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date
+    )
+
+if start_date > end_date:
+    st.error("시작 날짜는 종료 날짜보다 늦을 수 없습니다.")
+    st.stop()
+
+mask_date = (
+    (df_site[time_cols['발생시간']].dt.date >= start_date) &
+    (df_site[time_cols['발생시간']].dt.date <= end_date)
+)
+
+df_site = df_site.loc[mask_date].copy()
+
+st.caption(
+    f"📊 분석 기간: {start_date} ~ {end_date} · 총 {len(df_site):,}건"
+)
+
 ho_list = sorted(df_site['호기'].unique())
-selected_hos = st.multiselect("", ho_list, default=[])
 
 if not selected_hos:
     st.info("하나 이상의 호기를 선택해주세요.")
@@ -155,7 +194,7 @@ st.subheader("호기별 일별 이벤트 트렌드 (최근 14일)")
 df_site['발생일'] = pd.to_datetime(df_site[time_cols['발생시간']]).dt.normalize()
 
 today = pd.to_datetime('today').normalize()
-recent = df_site[df_site['발생일'] >= (today - timedelta(days=30))]
+recent = df_site.copy()
 
 # 피벗 테이블을 'long' 포맷으로 풀기
 trend = (

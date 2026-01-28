@@ -12,7 +12,6 @@ __all__ = [
     "KIND_OPTIONS",
     "SITE_OPTIONS",
     "PROCESS_OPTIONS",
-    "UNIT_OPTIONS",
     "transform_to_WA_schema", "to_excel_template_WA"
 ]
 

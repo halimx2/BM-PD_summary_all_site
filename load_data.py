@@ -70,7 +70,8 @@ def load_sheet_data_google():
     df_ = pd.DataFrame(values[1:], columns=raw_headers)
 
     # [검증] 사진에 있는 주요 컬럼들이 있는지 확인하고 중복 제거
-    subset_cols = ['발생시간', '조치완료', '작업자', '현상']
+    subset_cols = ['발생시간', '조치완료', '작업자']
+    # subset_cols = ['발생시간', '조치완료', '작업자', '현상']
     
     # 실제로 시트에 존재하는 컬럼만 필터링 (KeyError 방지)
     existing_subset = [c for c in subset_cols if c in df_.columns]
@@ -81,14 +82,24 @@ def load_sheet_data_google():
     return df_
 
 
+def fix_complete_time(r):
+    fixed = r['조치완료'].replace(
+        year=r['발생시간'].year,
+        month=r['발생시간'].month,
+        day=r['발생시간'].day
+    )
+    
+    # 만약 조치완료가 발생시간보다 과거면 하루 추가
+    if fixed < r['발생시간']:
+        fixed += timedelta(days=1)
+    
+    return fixed
+
+
 # 데이터 로드 및 전처리 함수
 @st.cache_data(ttl=300)
 def load_sheet_data() -> tuple[pd.DataFrame|None, str|None]:
     df = load_sheet_data_google()
-    # 그 후 중복 제거 실행
-    subset_cols = ['발생시간', '조치완료', '작업자', '현상']
-    df = df.drop_duplicates(subset=subset_cols, ignore_index=True)
-
 
     # 한국어 날짜 파싱
     RE = re.compile(r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(오전|오후)\s*(\d{1,2}):(\d{2})")
@@ -114,23 +125,13 @@ def load_sheet_data() -> tuple[pd.DataFrame|None, str|None]:
     mask2 = neg & (df['조치 진행 시간(분)'].abs() <= 300)
     df.loc[mask2, ['발생시간','조치완료']] = df.loc[mask2, ['조치완료','발생시간']].values
 
-    # 재계산
+    # 조치 진행 시간 계산
     df['조치 진행 시간(분)'] = ((df['조치완료'] - df['발생시간'])
                                .dt.total_seconds().div(60).round().astype('Int64'))
+    
+    mask3 = df['조치 진행 시간(분)'] > 12 * 60  # 12시간 초과
 
-    # 신규 보정: 1400 초과 경우 날짜만 발생일로 교체
-    mask3 = df['조치 진행 시간(분)'] > 1400
-    df.loc[mask3, '조치완료'] = df.loc[mask3].apply(
-        lambda r: r['조치완료'].replace(
-            year=r['발생시간'].year,
-            month=r['발생시간'].month,
-            day=r['발생시간'].day
-        ), axis=1
-    )
-
-    # 재계산 최종
-    df['조치 진행 시간(분)'] = ((df['조치완료'] - df['발생시간'])
-                               .dt.total_seconds().div(60).round().astype('Int64'))
+    df.loc[mask3, '조치완료'] = df.loc[mask3].apply(fix_complete_time, axis=1)
 
     # 현상/원인/조치 필터
     # (1) 필터
@@ -165,6 +166,14 @@ def load_sheet_data() -> tuple[pd.DataFrame|None, str|None]:
     ordered = ['종류','Site','호기','Machine','Unit',"Assy'",
                '발생시간','조치완료','조치 진행 시간(분)',
                '작업자','현상','원인','조치']
+    df['호기'] = (
+        df['호기']
+            .astype(str)
+            .str.lstrip("'")   # 앞의 ' 제거 (있으면)
+            .str.lstrip("#")   # 혹시 기존 #도 제거
+            .apply(lambda x: f"#{x}")
+    )
+
     return df[ordered], None
 
 

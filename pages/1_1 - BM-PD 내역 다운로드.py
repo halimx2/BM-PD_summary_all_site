@@ -4,16 +4,17 @@ import streamlit as st
 from datetime import date
 import openpyxl
 
-# from options import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS
-# from load_data import load_sheet_data
-
 from utils import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS
 from utils import load_sheet_data
 from utils import transform_to_WA_schema, to_excel_template_WA
 
 # — Streamlit UI
 st.set_page_config(page_title="부동내역 필터링", layout="wide")
-st.title("📋 부동내역 필터링 및 다운로드")
+st.title("📋 BM/PD 내역 다운로드")
+st.caption("- 왼쪽에서 조건을 선택하면 오른쪽 결과가 자동으로 갱신됩니다. ('-'는 전체를 의미)")
+st.caption("- '초기화' 버튼을 누르면 모든 필터가 기본값으로 돌아갑니다.")
+st.caption("- 필터를 설정하고 '다운로드' 버튼을 누르면 필터된 데이터를 엑셀 파일로 받을 수 있습니다.")
+# st.caption("")
 
 # 데이터 로드
 df, error = load_sheet_data()
@@ -27,8 +28,6 @@ df['발생일'] = df['발생시간'].dt.date
 # 결측치 제거 후 최대/최소 발생일 계산
 valid_dates = df['발생일'].dropna()
 day_min, day_max = valid_dates.min(), valid_dates.max()
-
-# st.write(day_max)
 
 
 filter_col, table_col = st.columns([1, 3])
@@ -101,7 +100,7 @@ with table_col:
     # raw 데이터 다운로드 버튼
     st.download_button(
         key='download_raw',
-        label='📥 raw 데이터 엑셀 다운로드',
+        label='다운로드 (필터된 데이터)',
         data=to_excel_bytes(filtered),
         file_name='filtered_trouble_sheet.xlsx',
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -112,7 +111,7 @@ with table_col:
     st.dataframe(filtered_wa.head(10), use_container_width=True)
 
     st.download_button(
-        "📥 WA 템플릿으로 다운로드 (.xlsx)",
+        "다운로드 (필터된 데이터 - WA 템플릿)",
         data=to_excel_template_WA(filtered_wa),
         file_name="bmpd_daily_issue_WA.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
