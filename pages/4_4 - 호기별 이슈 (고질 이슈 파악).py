@@ -36,8 +36,6 @@ else:
         st.stop()
 
 df_site = df[df[site_col] == selected_site].reset_index(drop=True)
-# st.subheader(f"{selected_site} 데이터 ({len(df_site)}건)")
-# st.dataframe(df_site)
 
 # 4) 시간 컬럼 자동 탐지 및 변환
 
@@ -61,8 +59,6 @@ time_cols = {
     '발생시간': time_cols['발생시간'],
     '조치완료': time_cols['조치완료']
 }
-
-# 5) 호기 선택 UI 및 소요시간 계산
 
 # 5) 분석 조건 선택 (호기 + 기간)
 st.markdown("### 분석 조건")

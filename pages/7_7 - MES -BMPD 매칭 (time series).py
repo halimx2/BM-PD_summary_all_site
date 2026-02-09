@@ -6,7 +6,7 @@ from datetime import datetime, date, time, timedelta
 
 from utils import KIND_OPTIONS, SITE_OPTIONS, PROCESS_OPTIONS, UNIT_OPTIONS, load_sheet_data
 
-from bmpd_to_mes import df_clean_korean, run_matching_reverse, show_alarm_catalog_and_detail, read_excel_safely, merge_uploaded_excels
+from bmpd_to_mes import df_clean_korean, run_matching_reverse, show_alarm_catalog_and_detail, read_excel_safely, merge_uploaded_excels, show_alarm_catalog_and_detail_time_series
 
 import pandas as pd
 import streamlit as st
@@ -71,7 +71,10 @@ else:
 # 아래쪽 코드(예: show_alarm_catalog_and_detail)도 조건문으로 감싸기
 if len(df_bmpd) > 0 and len(df_mes) > 0 :
     # show_alarm_catalog_and_detail(df_matched_only_)
-    show_alarm_catalog_and_detail(final_matched_mes_data)
+    # show_alarm_catalog_and_detail(final_matched_mes_data)
+    # show_alarm_catalog_and_detail_time_series(final_matched_mes_data, df_bmpd)
+    # show_alarm_catalog_and_detail_time_series(final_matched_mes_data, df_matched_only_)
+    show_alarm_catalog_and_detail_time_series(final_matched_mes_data, df_bmpd=df_bmpd)
 
 else:
     st.info("모든 파일이 업로드되어야 알람 상세 데이터를 볼 수 있습니다.")
