@@ -605,7 +605,7 @@ def show_alarm_catalog_and_detail_time_series(df_all: pd.DataFrame, df_bmpd: pd.
         cols = [c for c in ["발생일시","해제일시","경과(초)","알람 명","설비명","설비 ID","매칭된_BMPD"] if c in tmp.columns]
         return tmp.loc[m, cols].sort_values("발생일시")
 
-    def _bmpd_window(df_b: pd.DataFrame, line_key: str, t0: pd.Timestamp, minutes=15):
+    def _bmpd_window(df_b: pd.DataFrame, line_key: str, t0: pd.Timestamp, minutes=20):
         if df_b is None or len(df_b) == 0 or pd.isna(t0):
             st.write("BMPD 데이터가 없거나, 기준 시간이 유효하지 않습니다.")
             return pd.DataFrame()
