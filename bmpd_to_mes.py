@@ -676,7 +676,7 @@ def show_alarm_catalog_and_detail_time_series(df_all: pd.DataFrame, df_bmpd: pd.
             # ----------------------------
             # ✅ 여기부터 "윈도우 보기" (MES±15 / BMPD±15)
             # ----------------------------
-            st.markdown("### 🕒 Window 보기 (±20분)")
+            st.markdown("### 🕒 MES - BMPD 흐름 확인 (±20분)")
 
             t_mes = pd.to_datetime(row.get("발생일시"), errors="coerce")
             line_key = _extract_line_key_from_mes_eqp(row.get("설비명", ""))
@@ -688,7 +688,7 @@ def show_alarm_catalog_and_detail_time_series(df_all: pd.DataFrame, df_bmpd: pd.
             colA, colB = st.columns(2, gap="large")
 
             with colA:
-                st.markdown("#### 🟦 MES 기준")
+                st.markdown("#### 🟦 MES")
                 mes_ctx = _mes_window(df, line_key=line_key, t0=t_mes, minutes=20)
                 if mes_ctx.empty:
                     st.info("해당 윈도우에 MES 알람이 없습니다.")
@@ -696,7 +696,7 @@ def show_alarm_catalog_and_detail_time_series(df_all: pd.DataFrame, df_bmpd: pd.
                     st.dataframe(mes_ctx, use_container_width=True)
 
             with colB:
-                st.markdown("#### 🟩 BMPD 기준")
+                st.markdown("#### 🟩 BMPD")
                 if df_bmpd is None:
                     st.info("df_bmpd가 전달되지 않아 BMPD 윈도우를 만들 수 없습니다.")
                 elif pd.isna(t_bmpd):
